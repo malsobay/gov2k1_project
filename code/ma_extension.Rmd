@@ -1,0 +1,259 @@
+---
+title: "Gov2k1 Final Paper"
+author: "Mohammed Alsobay"
+date: "11/24/2021"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(here)
+library(lme4)
+library(stargazer)
+library(coefplot)
+library(ggstance)
+library(broom)
+library(data.table)
+here::here()
+
+getwd()
+```
+
+# Todos and Qs:
+
+* Should we try to split the treatment into 2 levels to try and measure the impact of each separately? 
+
+
+# Figure 1: Disaggregation exposes more complex narrative
+
+## Preprocessing
+
+```{r}
+tweet_cols = c("Tweet1_1", "Tweet1_2", "Tweet1_3",
+               "Tweet2_1", "Tweet2_2", "Tweet2_3",
+               "Tweet3_1", "Tweet3_2", "Tweet3_3",
+               "Tweet4_1", "Tweet4_2", "Tweet4_3",
+               "Tweet5_1", "Tweet5_2", "Tweet5_3",
+               "Tweet6_1", "Tweet6_2", "Tweet6_3",
+               "Tweet7_1", "Tweet7_2", "Tweet7_3",
+               "Tweet8_1", "Tweet8_2", "Tweet8_3")
+
+sec_tweets = c(1,2,3,5)
+countersec_tweets = c(4,6,7,8)
+
+
+# %>% select(c(tweet_cols, "Id", "Prmt", "Sect"))
+df = read_csv("data/survey_data.csv")  %>%
+  mutate(treatment = as.factor(case_when(Prmt == 1 ~ "Control",
+                                         Prmt == 2 ~ "Religious",
+                                         Prmt == 3 ~ "National",
+                                         Prmt == 4 ~ "ReligiousElite",
+                                         Prmt == 5 ~ "NationalElite")),
+         Id = as.factor(Id),
+         Sect = as.factor(case_when(Sect == 1 ~ "Maronite",
+          Sect == 2 ~ "Greek Orthodox",
+          Sect == 3 ~ "Catholic",
+          Sect == 5 ~ "Armenian Orthodox",
+          Sect == 6 ~ "Armenian Catholic",
+          Sect == 7 ~ "Sunni",
+          Sect == 8 ~ "Shia",
+          Sect == 9 ~ "Druze",
+          Sect == 10 ~ "Alawite",
+          Sect == 11 ~ "Christian min."))) 
+
+df$sect_coarse = as.factor(ifelse(df$Sect %in% c("Sunni", "Shia", "Druze"), yes = as.character(df$Sect), no="Christian"))
+df$Sect = relevel(df$Sect, ref="Shia")
+df$sect_coarse = relevel(df$sect_coarse, ref="Shia")
+
+isna_cols = paste("isna_", tweet_cols, sep="")
+
+df[,isna_cols] = df %>% select(tweet_cols) %>% is.na() 
+
+df = df %>% mutate(anyna_tweet1 = isna_Tweet1_1 | isna_Tweet1_2 | isna_Tweet1_3,
+                   anyna_tweet2 = isna_Tweet2_1 | isna_Tweet2_2 | isna_Tweet2_3,
+                   anyna_tweet3 = isna_Tweet3_1 | isna_Tweet3_2 | isna_Tweet3_3,
+                   anyna_tweet5 = isna_Tweet5_1 | isna_Tweet5_2 | isna_Tweet5_3,
+                   anyna_tweet4 = isna_Tweet4_1 | isna_Tweet4_2 | isna_Tweet4_3,
+                   anyna_tweet6 = isna_Tweet6_1 | isna_Tweet6_2 | isna_Tweet6_3,
+                   anyna_tweet7 = isna_Tweet7_1 | isna_Tweet7_2 | isna_Tweet7_3,
+                   anyna_tweet8 = isna_Tweet8_1 | isna_Tweet8_2 | isna_Tweet8_3,
+                   relig_index = df %>% select(matches("relig[0-9]")) %>% rowMeans(),
+                   sectarian_index = df %>% select(matches("sectarian[0-9]")) %>% rowMeans(),
+                   sectsj_index = df %>% select(matches("sectsj[0-9]")) %>% rowMeans(),
+                   mcp_index = df %>% select(matches("mcp[0-9]")) %>% rowMeans())
+
+
+```
+
+### Sectarian Fig 1
+
+```{r, out.width=10}
+lm_summaries = data.frame()
+
+for (tweet_number in c(1,2,3,5)) {
+  for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = tweet_number,
+                                      outcome_number = outcome_number))
+  }
+}
+
+lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
+
+
+lm_summaries %>% filter(outcome_number == 1 & term != "(Intercept)") %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  labs(title="Tweet Rating") +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0)
+
+lm_summaries %>% filter(outcome_number == 2 & term != "(Intercept)") %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  labs(title="Author Rating") +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0)
+
+lm_summaries %>% filter(outcome_number == 3 & term != "(Intercept)") %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  labs(title="Likelihood to share") +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0)
+
+#Summarizing plot 
+lm_summaries %>% filter(term != "(Intercept)") %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  labs(title="Sectarian tweets") + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0) + 
+  facet_grid(.~outcome_number)
+
+
+```
+
+## Interactions
+
+### Sectarian
+
+```{r, fig.width=15}
+
+lm_summaries = data.frame()
+
+for (tweet_number in c(1,2,3,5)) {
+  for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment*sect_coarse", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = tweet_number,
+                                      outcome_number = outcome_number))
+  }
+}
+
+lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
+
+
+# lm_summaries %>% filter(outcome_number == 1 & (lm_summaries$term %like% ":")) %>%  
+#   ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+#   geom_point(position=ggstance::position_dodgev(height=0.5)) +
+#   labs(title="Tweet Rating") +
+#   geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+#   geom_vline(xintercept=0)
+
+
+lm_summaries %>% filter((lm_summaries$term %like% "treatment")) %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  labs(title="Sectarian tweets") + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0) + 
+  facet_grid(.~outcome_number)
+
+```
+
+### Countersec 
+
+```{r, fig.width=15}
+
+lm_summaries = data.frame()
+
+for (tweet_number in c(4, 6,7,8)) {
+  for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment*sect_coarse", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = tweet_number,
+                                      outcome_number = outcome_number))
+  }
+}
+
+lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
+
+
+# lm_summaries %>% filter(outcome_number == 1 & (lm_summaries$term %like% ":")) %>%  
+#   ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+#   geom_point(position=ggstance::position_dodgev(height=0.5)) +
+#   labs(title="Tweet Rating") +
+#   geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+#   geom_vline(xintercept=0)
+
+
+lm_summaries %>% filter((lm_summaries$term %like% "treatment")) %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
+  labs(title="Countersec tweets") + 
+  geom_point(position=ggstance::position_dodgev(height=0.5)) +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
+  geom_vline(xintercept=0) + 
+  facet_grid(.~outcome_number)
+
+```
+
+
+
+# Non-response (NR) patterns 
+
+## Patterns of NR
+
+* break down into unit and item-level patterns 
+
+```{r}
+
+
+
+#Look at blocks of behavior 
+(df %>% group_by(across(all_of(isna_cols))) %>% count() %>% arrange(desc(n)))[6,]
+
+#Average by columns
+df %>% select(tweet_cols) %>% is.na() %>% colMeans() %>% sort(decreasing = TRUE) 
+df %>% select(tweet_cols) %>% is.na() %>% colMeans() 
+
+```
+
+
+# Predicting nonresponse 
+
+```{r}
+df %>% select(matches("any")) %>% colMeans()
+
+
+stargazer(lm(anyna_tweet1 ~ sect_coarse + polinterest + socmedia, data=df),
+          lm(anyna_tweet2 ~ sect_coarse + polinterest + socmedia, data=df),
+          lm(anyna_tweet3 ~ sect_coarse + polinterest + socmedia, data=df),
+          lm(anyna_tweet5 ~ sect_coarse + polinterest + socmedia, data=df), type="text")
+
+stargazer(lm(anyna_tweet1 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet2 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet3 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet5 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet4 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet6 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet7 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet8 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df), type="text")
+
+```
+
