@@ -20,13 +20,6 @@ here::here()
 getwd()
 ```
 
-# Todos and Qs:
-
-* Should we try to split the treatment into 2 levels to try and measure the impact of each separately? 
-
-
-# Figure 1: Disaggregation exposes more complex narrative
-
 ## Preprocessing
 
 ```{r}
@@ -86,7 +79,38 @@ df = df %>% mutate(anyna_tweet1 = isna_Tweet1_1 | isna_Tweet1_2 | isna_Tweet1_3,
 
 ```
 
-### Sectarian Fig 1
+
+# Todos and Qs:
+
+* Should we try to split the treatment into 2 levels (message and elite) to try and measure the impact of each separately? 
+* Druze excluded in religious ID treatment 
+
+
+# Part 1: Aggregation obscures important item-level differences 
+In CITE PAPER, the authors conduct two experiments to estimate the effect of counter-sectarian primes on sectarian attitudes: one on Twitter, and another through a field survey. In this section, we respond to the survey experiment, highlighting experimental and analytical decisions that we believe obscure important underlying dynamics of the phenomenon of interest, and the context in which it was studied. 
+
+In the survey experiment, a firm approached a representative sample of Lebanese society and asked them to rate a total of 8 tweets, 4 of which were "sectarian" and 4 of which were "counter-sectarian" in nature. The participants were asked to rate the content of the tweet itself, the person who wrote the tweet, and how likely they were to share the tweet themselves, all on a scale of 1-10. Participants were randomly assigned to either a control condition, or to receiving one of four priming statements before rating the tweets (translated from Arabic by the authors):
+
+* __Control statement:__ Over the past few years, there has been arise in sectarian tensions in Lebanon and across the Middle East. 
+* __National identity prime:__ Over the past few years, there has been arise in sectarian tensions in Lebanon and across the Middle East. _But many people agree that their sect does not make them better than anyone else. They agree that we are all Lebanese and we all should be equal. We all live on one land. We share the same history and the same future; we share the same culture, the same food, and language. Most importantly, we share a common Lebanese identity._
+* __Religious identity prime:__ Over the past few years, there has been arise in sectarian tensions in Lebanon and across the Middle East. _But many people agree that their sect does not make them better than anyone else. They agree that we all believe in one God and we should all be equal. We all live on one land, we share the same history and the same future; we share the same culture, the same food, and language. Most importantly, we share a common belief in God._ 
+* __Elite-endorsed national ID prime:__ " Over the past few years, there has been a rise in sectarian tensions in Lebanon and across the Middle East. _But many prominent politicians including members of the March 8 bloc, the March 14 bloc, and independents have called for people to come together. They agree that we are all Lebanese..._
+* __Elite-endorsed religious ID prime:__ " Over the past few years, there has been a rise in sectarian tensions in Lebanon and across the Middle East. _But many prominent Christian, Sunni, and Shia religious leaders have issued religious decrees calling for people to come together and stop inciting sectarian hatreds. They agree that we all believe in one God..._
+
+The original paper measures the treatment effects on three outcomes of interest: (1) the average rating across all sectarian tweets; (2) the average rating across all counter-sectarian tweets; and (3) total counter-sectarian sentiment, which they operationalize as the difference between (2) and (1). In this response, we argue that this aggregation obscures important heterogeneity in sentiment and response patterns. 
+
+# 1. Disaggregation exposes a more complex sectarian-political dynamic 
+The paper reports that the each of the sectarian tweets targets a single sect, with the targeted sects being Sunnis, Shia, Christians, and Druze. On the other hand, the counter-sectarian tweets are generically counter-sectarian, i.e. they call for unity, but do not promote a specific sect. Consequently, it would be reasonable to expect different treatment efficacy for each of the sectarian tweets, which we do indeed observe in Figure 1, which shows the treatment effect on each of the outcomes (the columns), for each of the tweets (the colors).
+
+There are a few points to highlight here: 
+
+1. Aggregation drops records that have nulls in any values, which reduces the sample size nearly 30% and limits the external validity of the results 
+2. If the goal of getting a nationally representative sample is to estimate the effect of nationally broadcasting such primes, then the aggregated QoI implies that each of these messages is broadcast in equal proportion -- this isn't true, so we can't take these results to be indiciative of total societal gain from such an intervention 
+2. The religious elite prime notably excludes druze -- no interaction observed but difficult to measure because so few of them -- despite this, interesting interaction in tweet 6 
+3. The tweets are riddled with unintended political messages, and tweet 2 has nothing to do with sectarianism, and the increased approval is actually from the way that the primes are phrased 
+
+
+### Fig 1. Treatment effects measured on each sectarian tweet 
 
 ```{r, out.width=10}
 lm_summaries = data.frame()
@@ -102,28 +126,9 @@ for (tweet_number in c(1,2,3,5)) {
 }
 
 lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
-
-
-lm_summaries %>% filter(outcome_number == 1 & term != "(Intercept)") %>%  
-  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
-  geom_point(position=ggstance::position_dodgev(height=0.5)) +
-  labs(title="Tweet Rating") +
-  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
-  geom_vline(xintercept=0)
-
-lm_summaries %>% filter(outcome_number == 2 & term != "(Intercept)") %>%  
-  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
-  geom_point(position=ggstance::position_dodgev(height=0.5)) +
-  labs(title="Author Rating") +
-  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
-  geom_vline(xintercept=0)
-
-lm_summaries %>% filter(outcome_number == 3 & term != "(Intercept)") %>%  
-  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number)) + 
-  geom_point(position=ggstance::position_dodgev(height=0.5)) +
-  labs(title="Likelihood to share") +
-  geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
-  geom_vline(xintercept=0)
+lm_summaries$outcome_label = factor(case_when(lm_summaries$outcome_number == 1 ~ "Tweet Rating",
+                                       lm_summaries$outcome_number == 2 ~ "User Rating",
+                                       lm_summaries$outcome_number == 3 ~ "Likelihood to Share"))
 
 #Summarizing plot 
 lm_summaries %>% filter(term != "(Intercept)") %>%  
@@ -132,7 +137,7 @@ lm_summaries %>% filter(term != "(Intercept)") %>%
   geom_point(position=ggstance::position_dodgev(height=0.5)) +
   geom_errorbar(position=ggstance::position_dodgev(height=0.5)) + 
   geom_vline(xintercept=0) + 
-  facet_grid(.~outcome_number)
+  facet_grid(.~factor(outcome_label, levels=c("Tweet Rating", "User Rating", "Likelihood to Share")))
 
 
 ```
