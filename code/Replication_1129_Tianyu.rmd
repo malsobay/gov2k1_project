@@ -1,0 +1,210 @@
+---
+title: "Replication_1129_Tianyu's Part"
+author: "Mohammed Alsobay, Sumaya Malas, Tianyu Qiao (Team 2.5 Arabs)"
+date: "11/29/2021"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#Twitter script packages 
+library(readr,warn.conflicts = FALSE, quietly=TRUE)
+library(ggplot2,warn.conflicts = FALSE, quietly=TRUE)
+library(coefplot,warn.conflicts = FALSE, quietly=TRUE)
+library(dplyr,warn.conflicts = FALSE, quietly=TRUE)
+library(psych,warn.conflicts = FALSE, quietly=TRUE)
+library(MASS,warn.conflicts = FALSE, quietly=TRUE)
+library(xtable,warn.conflicts = FALSE, quietly=TRUE)
+library(stargazer,warn.conflicts = FALSE, quietly=TRUE)
+library(knitr,warn.conflicts = FALSE, quietly=TRUE)
+```
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#Read in Twitter Data
+data<-read.csv("twitter_data.csv")
+```
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#treatment variable
+data$treatment_num<-as.factor(data$treatment_num)
+#date variable
+data$treatment_date<-as.Date(data$treatment_date, format="%m/%d/%y")
+data$treatment_date2<-as.character(data$treatment_date)
+
+#median or fewer anti-Shia friends
+data_anti_shia_net_low<-subset(data, data$anti_shia_friends_count<=38)
+data_anti_shia_net_high<-subset(data, data$anti_shia_friends_count>38)
+
+#subset data by follower counts
+data_1000_fol<-subset(data, data$followers_count<=1000)
+data_100_fol<-subset(data, data$followers_count<=100)
+data_150_fol<-subset(data, data$followers_count<=150)
+data_200_fol<-subset(data, data$followers_count<=200)
+data_median_fol<-subset(data, data$followers_count<=245)
+data_300_fol<-subset(data, data$followers_count<=300)
+data_350_fol<-subset(data, data$followers_count<=350)
+data_400_fol<-subset(data, data$followers_count<=400)
+data_450_fol<-subset(data, data$followers_count<=450)
+data_500_fol<-subset(data, data$followers_count<=500)
+#suspended accounts
+data$suspended<-ifelse(is.na(data$month_post), 1,0)
+#proportion_variables
+data$prop_pre_tpd<-data$tpd_anti_shia_pre/data$tpd_pre
+data$prop_post_tpd<-data$tpd_anti_shia_post/data$tpd_post
+data$prop_pre_week<-data$week_anti_shia_pre/data$week_pre
+data$prop_post_week<-data$week_anti_shia_post/data$week_post
+data$prop_pre_two_weeks<-data$two_weeks_anti_shia_pre/data$two_weeks_pre
+data$prop_post_two_weeks<-data$two_weeks_anti_shia_post/data$two_weeks_post
+data$prop_pre_month<-data$month_anti_shia_pre/data$month_pre
+data$prop_post_month<-data$month_anti_shia_post/data$month_post
+data[data==Inf]<-NA
+```
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+
+#Difference in Means (All Data)
+month<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num, data=data)
+two_weeks<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num, 
+              data=data)
+week<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num, data=data)
+day<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num, data=data)
+```
+
+```{r}
+# examine unstable treatment effect by putting da
+data$treatment_num<-as.factor(data$treatment_num)
+#date variable
+data$treatment_date<-as.Date(data$treatment_date, format="%m/%d/%y")
+data$treatment_date2<-as.character(data$treatment_date)
+
+treatment_group_1 <- data[c(data$treatment_date2 <='2018-02-06'),]
+treatment_group_2 <- data[c(data$treatment_date2 <='2018-02-13'),]
+treatment_group_3 <- data[c(data$treatment_date2 <='2018-02-19'),] 
+
+#alternatively?   actually, both methods work
+treat_1<-subset(data, data$treatment_date2 <='2018-02-06')
+treat_2<-subset(data, data$treatment_date2 <='2018-02-13')
+treat_3<-subset(data, data$treatment_date3 <='2018-02-19')
+
+```
+
+
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+# examine treatment effects for different treatment groups
+
+month_1<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num, data=treatment_group_1)
+month_2<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num, data=treatment_group_2)
+month_3<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num, data=treatment_group_3)
+
+two_weeks_1<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num, data=treatment_group_1)
+two_weeks_2<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num, data=treatment_group_2)
+two_weeks_3<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num, data=treatment_group_3)
+
+week_1<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num, 
+         data=treatment_group_1)
+week_2<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num, 
+         data=treatment_group_2)
+week_3<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num, 
+         data=treatment_group_3)
+
+day_1<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num, 
+        data=treatment_group_1)
+day_2<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num, 
+        data=treatment_group_2)
+day_3<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num, 
+        data=treatment_group_3)
+
+
+#graph
+multiplot(day_1, week_1, two_weeks_1, month_1, 
+          coefficients=c("treatment_num1", "treatment_num2", 
+                         "treatment_num3", "treatment_num4", "treatment_num5"), 
+          newNames=c(treatment_num1="Arab ID ", 
+                     treatment_num2="Religious ID ", 
+                     treatment_num3="Arab ID (Elite)", 
+                     treatment_num4="Religious ID (Elite)", 
+                     treatment_num5=" No ID "), 
+          names=c("     Day", "   Week", "  Two Weeks ", "Month    "), 
+          title="Figure 2: Replication for First Treatment Group", scales="free_x",
+          sort="alphabetical", 
+          innerCI=1.645, outerCI=1.96, single=FALSE,
+          zeroType = 0,legend.position="none") +
+  scale_color_manual(values=c("red", "blue", "seagreen", "black")) +
+  theme_bw() + theme(panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(), 
+                     legend.position="none", 
+                     axis.line = element_line(colour = "black"), 
+                     text = element_text(size=15))+
+  ylab("Treatments") + 
+  xlab("Difference in Anti-Shia Tweet Count")+
+  geom_vline(aes(xintercept = 0), size = .5, linetype = "dashed")
+
+
+multiplot(day_2, week_2, two_weeks_2, month_2, 
+          coefficients=c("treatment_num1", "treatment_num2", 
+                         "treatment_num3", "treatment_num4", "treatment_num5"), 
+          newNames=c(treatment_num1="Arab ID ", 
+                     treatment_num2="Religious ID ", 
+                     treatment_num3="Arab ID (Elite)", 
+                     treatment_num4="Religious ID (Elite)", 
+                     treatment_num5=" No ID "), 
+          names=c("     Day", "   Week", "  Two Weeks ", "Month    "), 
+          title="Figure 3: Replication for Second Treatment Group", scales="free_x",
+          sort="alphabetical", 
+          innerCI=1.645, outerCI=1.96, single=FALSE,
+          zeroType = 0,legend.position="none") +
+  scale_color_manual(values=c("red", "blue", "seagreen", "black")) +
+  theme_bw() + theme(panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(), 
+                     legend.position="none", 
+                     axis.line = element_line(colour = "black"), 
+                     text = element_text(size=15))+
+  ylab("Treatments") + 
+  xlab("Difference in Anti-Shia Tweet Count")+
+  geom_vline(aes(xintercept = 0), size = .5, linetype = "dashed")
+
+multiplot(day_3, week_3, two_weeks_3, month_3, 
+          coefficients=c("treatment_num1", "treatment_num2", 
+                         "treatment_num3", "treatment_num4", "treatment_num5"), 
+          newNames=c(treatment_num1="Arab ID ", 
+                     treatment_num2="Religious ID ", 
+                     treatment_num3="Arab ID (Elite)", 
+                     treatment_num4="Religious ID (Elite)", 
+                     treatment_num5=" No ID "), 
+          names=c("     Day", "   Week", "  Two Weeks ", "Month    "), 
+          title="Figure 4: Replication for Third Treatment Group", scales="free_x",
+          sort="alphabetical", 
+          innerCI=1.645, outerCI=1.96, single=FALSE,
+          zeroType = 0,legend.position="none") +
+  scale_color_manual(values=c("red", "blue", "seagreen", "black")) +
+  theme_bw() + theme(panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(), 
+                     legend.position="none", 
+                     axis.line = element_line(colour = "black"), 
+                     text = element_text(size=15))+
+  ylab("Treatments") + 
+  xlab("Difference in Anti-Shia Tweet Count")+
+  geom_vline(aes(xintercept = 0), size = .5, linetype = "dashed")
+
+
+#knitr::include_graphics(path="replication_figures/figure_2_orig.png")
+```
+
+
+```{r}
+#Read in Survey Data
+data_survey<-read.csv("survey_data.csv")
+```
+
+
