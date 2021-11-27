@@ -28,11 +28,13 @@ library(MASS,warn.conflicts = FALSE, quietly=TRUE)
 library(xtable,warn.conflicts = FALSE, quietly=TRUE)
 library(stargazer,warn.conflicts = FALSE, quietly=TRUE)
 library(knitr,warn.conflicts = FALSE, quietly=TRUE)
+
+library(here)
 ```
 
 ```{r, message = FALSE, warning = FALSE, echo=FALSE}
 #Read in Twitter Data
-data<-read.csv("twitter_data.csv")
+data<-read.csv("../data/twitter_data.csv")
 ```
 
 ```{r, message = FALSE, warning = FALSE, echo=FALSE}
