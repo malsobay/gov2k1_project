@@ -18,6 +18,13 @@ library(MASS)
 library(xtable)
 library(stargazer)
 library(knitr)
+
+library(lmtest)
+library(sandwich)
+library(ggplot2)
+library(broom)
+library(RobustSE)
+
 ```
 
 ```{r, include=FALSE}
@@ -34,7 +41,7 @@ rm(list = ls())
 
 
 #Read in Data
-data<-read_csv("data/survey_data.csv")
+data<-read_csv("../data/survey_data.csv")
 
 #Prepare Data for Analysis 
 
@@ -88,12 +95,6 @@ model3<-lm(combined3~treatment, data=data)
 
 
 ```{r, out.width="400px", out.height="300px", message=FALSE}
-library(lmtest)
-library(sandwich)
-library(ggplot2)
-library(broom)
-library(RobustSE)
-
 #Standard Errors with Mohafaza
 mod1<- glm(combined1~ treatment+ Mohafaza, data= data)
 
