@@ -160,8 +160,6 @@ mean(df$isna_countersec & df$isna_sec)
 # Disaggregation exposes a more complex sectarian-political dynamic 
 The paper reports that the each of the sectarian tweets targets a single sect, with the targeted sects being Sunnis, Shia, Christians, and Druze. On the other hand, the counter-sectarian tweets are generically counter-sectarian, i.e. they call for unity, but do not promote a specific sect. Because people from different sects may respond differently to sectarian tweets and counter-sectarian primes depending on the relationship between their personal sect and the targeted sect, it would be reasonable to expect different treatment efficacy for each of the sectarian tweets, which we explore in this section. 
 
-<!-- which we do indeed observe in Figure 1, which shows the treatment effect on each of the outcomes (the columns), for each of the tweets (the colors). -->
-
 To contextualize the differences observed between individual tweets in the survey experiment, we contacted the authors for the exact phrasing of the tweets used in Arabic. As native Arabic speakers, we are able to faithfully translate these into English below, and discuss how the nuance of the phrasing affects this experiment: 
 
 __Sectarian tweets:__ 
