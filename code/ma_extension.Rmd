@@ -269,8 +269,8 @@ lm_summaries %>% filter(term != "(Intercept)") %>%
 
 
 
-# Interactions and inclusion/exclusion of Druze
-To be completed. 
+<!-- # Interactions and inclusion/exclusion of Druze -->
+<!-- To be completed.  -->
 
 
 # Exploring patterns of non-response 
