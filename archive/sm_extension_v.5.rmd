@@ -1,0 +1,271 @@
+---
+title: "Replication_1129_Sumaya's Part"
+author: "Mohammed Alsobay, Sumaya Malas, Tianyu Qiao (Team 2.5 Arabs)"
+date: "11/29/2021"
+output: pdf_document
+urlcolor: blue
+---
+
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#Twitter script packages 
+library(readr)
+library(ggplot2)
+library(coefplot)
+library(dplyr)
+library(psych)
+library(MASS)
+library(xtable)
+library(stargazer)
+library(knitr)
+```
+
+```{r, include=FALSE}
+here::here()
+```
+
+
+# Clustered Standard Errors for Survey Experiment
+Clustered standard errors: The survey data included information on the subject’s geography, which was not used in either of the basic OLS estimates reported in the paper, or the controlled regressions in the appendix. Given the context of Lebanon’s consociational democracy and ethnic distribution based on religious sect, we want to cluster the standard errors of the treatment effect by the different geographic/administrative levels provided to assess the robustness of the findings.
+
+```{r, echo=FALSE, message=FALSE}
+# Survey data preprocessing 
+rm(list = ls())
+
+
+#Read in Data
+data<-read_csv("../data/survey_data.csv")
+
+#Prepare Data for Analysis 
+
+#Covariate Indices (average responses)
+data$relig<-(data$relig1+data$relig2+data$relig3+data$relig4+data$relig5+data$relig6+data$relig7+data$relig8+data$relig9+data$relig10+data$relig11+data$relig12)/12
+data$sectarian<-(data$sectarian1+data$sectarian2+data$sectarian3+data$sectarian4+data$sectarian5)/5
+data$sectsj<-(data$sectsj1+data$sectsj2+data$sectsj3+data$sectsj4+data$sectsj5+data$sectsj6+data$sectsj7+data$sectsj8)/8
+data$mcp<-(data$mcp1+data$mcp2+data$mcp3+data$mcp4+data$mcp5+data$mcp6+data$mcp7+data$mcp8+data$mcp9+data$mcp10+data$mcp11)/11
+
+#Sect Variables
+data$maronite<-ifelse(data$Sect==1, 1,0)
+data$sunni<-ifelse(data$Sect==7, 1,0)
+data$shia<-ifelse(data$Sect==8, 1,0)
+
+#Counter Sectarian Tweets
+#rating
+data$counter_sec1<-(data$Tweet8_1+data$Tweet6_1+data$Tweet4_1+data$Tweet7_1)/4
+#person rating
+data$counter_sec2<-(data$Tweet8_2+data$Tweet6_2+data$Tweet4_2+data$Tweet7_2)/4
+#sharing likelihood
+data$counter_sec3<-(data$Tweet8_3+data$Tweet6_3+data$Tweet4_3+data$Tweet7_3)/4
+# hist(data$counter_sec3)
+
+#Sectarian Tweets 
+#rating
+data$sec1<-(data$Tweet1_1+data$Tweet2_1+data$Tweet3_1+data$Tweet5_1)/4
+#person rating
+data$sec2<-(data$Tweet1_2+data$Tweet2_2+data$Tweet3_2+data$Tweet5_2)/4
+#sharing likelihood
+data$sec3<-(data$Tweet1_3+data$Tweet2_3+data$Tweet3_3+data$Tweet5_3)/4
+
+#Counter Sectarian Ratings - Sectarian Ratings
+data$combined1<-data$sec1-data$counter_sec1
+data$combined2<-data$sec2-data$counter_sec2
+data$combined3<-data$sec3-data$counter_sec3
+
+#Treatment Var
+data$treatment<-as.factor(data$Prmt)
+
+
+```
+
+
+```{r, out.width="400px", out.height="300px", message=FALSE}
+library(lmtest)
+library(sandwich)
+library(ggplot2)
+library(broom)
+library(RobustSE)
+#install.packages("pacman")
+library(pacman)
+library(data.table)
+library(magrittr)
+#install.packages("fixest")
+library(fixest)
+
+#Regressions for model 1- tweet rating in Figure 6
+model1<-feols(combined1~treatment, data=data)
+
+mod1_Mohafaza<- feols(combined1~ treatment+Mohafaza, data= data)
+
+mod1_Caza<- feols(combined1~ treatment+ Caza, data= data) 
+
+mod1_City<- feols(combined1~ treatment+ City, data= data)
+
+#Standard Errors
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "standard")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "hetero")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "cluster", cluster = c( "City"))
+
+
+#Regressions for model 2- User rating in Figure 6
+model2<-feols(combined2~treatment, data=data)
+
+mod2_Mohafaza<- feols(combined2~ treatment+Mohafaza, data= data)
+
+mod2_Caza<- feols(combined2~ treatment+ Caza, data= data) 
+
+mod2_City<- feols(combined2~ treatment+ City, data= data)
+
+#Standard Errors
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "standard")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "hetero")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "cluster", cluster = c( "City"))
+
+
+
+#Regressions for model 3- Likely to share in Figure 6
+model3<-feols(combined3~treatment, data=data)
+
+mod3_Mohafaza<- feols(combined3~ treatment+Mohafaza, data= data)
+
+mod3_Caza<- feols(combined3~ treatment+ Caza, data= data) 
+
+mod3_City<- feols(combined3~ treatment+ City, data= data)
+
+#Standard Errors
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "standard")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "hetero")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "cluster", cluster = c( "City"))
+
+
+```
+
+\newpage
+# Figure 7: Effect of Primes on (a) Sectarian and (b) Counter-Sectarian Tweet Ratings
+
+## Figure 7a: 
+
+
+```{r, out.width="400px", out.height="300px", message=FALSE}
+#Regressions for model 1- tweet rating in Figure 7a
+model1<-feols(sec1~treatment, data=data)
+
+mod1_Mohafaza<- feols(sec1~treatment+ Mohafaza, data= data)
+
+mod1_Caza<- feols(sec1~treatment+ Caza, data= data) 
+
+mod1_City<- feols(sec1~treatment+ City, data= data)
+
+#Standard Errors
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "standard")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "hetero")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "cluster", cluster = c( "City"))
+
+
+
+#Regressions for model 2- User rating in Figure 7a
+model2<-feols(sec2~treatment, data=data)
+
+mod2_Mohafaza<- feols(sec2~treatment+Mohafaza, data= data)
+
+mod2_Caza<- feols(sec2~treatment+ Caza, data= data) 
+
+mod2_City<- feols(sec2~treatment+ City, data= data)
+
+#Standard Errors
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "standard")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "hetero")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "cluster", cluster = c( "City"))
+
+
+
+#Regressions for model 3- Likely to share in Figure 7a
+model3<-feols(sec3~treatment, data=data)
+
+mod3_Mohafaza<- feols(sec3~treatment+Mohafaza, data= data)
+
+mod3_Caza<- feols(sec3~treatment+ Caza, data= data) 
+
+mod3_City<- feols(sec3~treatment+ City, data= data)
+
+#Standard Errors
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "standard")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "hetero")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "cluster", cluster = c( "City"))
+
+
+```
+
+
+
+\newpage
+### Figure 7b:
+ 
+
+```{r, out.width="400px", out.height="300px", message=FALSE}
+#Regressions for model 1- tweet rating in Figure 7b
+model1<-feols(counter_sec1~treatment, data=data)
+
+mod1_Mohafaza<- feols(counter_sec1~treatment+ Mohafaza, data= data)
+
+mod1_Caza<- feols(counter_sec1~treatment+ Caza, data= data) 
+
+mod1_City<- feols(counter_sec1~treatment+ City, data= data)
+
+#Standard Errors
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "standard")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "hetero")
+
+etable(model1, mod1_Mohafaza, mod1_Caza, mod1_City, se= "cluster", cluster = c( "City"))
+
+
+
+#Regressions for model 2- User rating in Figure 7b
+model2<-feols(counter_sec2~treatment, data=data)
+
+mod2_Mohafaza<- feols(counter_sec2~treatment+Mohafaza, data= data)
+
+mod2_Caza<- feols(counter_sec2~treatment+ Caza, data= data) 
+
+mod2_City<- feols(counter_sec2~treatment+ City, data= data)
+
+#Standard Errors
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "standard")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "hetero")
+
+etable(model2, mod2_Mohafaza, mod2_Caza, mod2_City, se= "cluster", cluster = c( "City"))
+
+
+
+#Regressions for model 3- Likely to share in Figure 7b
+model3<-feols(counter_sec3~treatment, data=data)
+
+mod3_Mohafaza<- feols(counter_sec3~treatment+Mohafaza, data= data)
+
+mod3_Caza<- feols(counter_sec3~treatment+ Caza, data= data) 
+
+mod3_City<- feols(counter_sec3~treatment+ City, data= data)
+
+#Standard Errors
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "standard")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "hetero")
+
+etable(model3, mod3_Mohafaza, mod3_Caza, mod3_City, se= "cluster", cluster = c( "City"))
+
+
+
+```

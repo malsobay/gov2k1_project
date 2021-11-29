@@ -1,0 +1,155 @@
+---
+title: "Replication_1129_Tianyu's Part"
+author: "Mohammed Alsobay, Sumaya Malas, Tianyu Qiao (Team 2.5 Arabs)"
+date: "11/29/2021"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#Twitter script packages 
+library(readr,warn.conflicts = FALSE, quietly=TRUE)
+library(ggplot2,warn.conflicts = FALSE, quietly=TRUE)
+library(coefplot,warn.conflicts = FALSE, quietly=TRUE)
+library(dplyr,warn.conflicts = FALSE, quietly=TRUE)
+library(psych,warn.conflicts = FALSE, quietly=TRUE)
+library(MASS,warn.conflicts = FALSE, quietly=TRUE)
+library(xtable,warn.conflicts = FALSE, quietly=TRUE)
+library(stargazer,warn.conflicts = FALSE, quietly=TRUE)
+library(knitr,warn.conflicts = FALSE, quietly=TRUE)
+```
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#Read in Twitter Data
+data<-read_csv("twitter_data.csv")
+```
+
+```{r, message = FALSE, warning = FALSE, echo=FALSE}
+#treatment variable
+data$treatment_num<-as.factor(data$treatment_num)
+#date variable
+data$treatment_date<-as.Date(data$treatment_date, format="%m/%d/%y")
+data$treatment_date2<-as.character(data$treatment_date)
+
+#median or fewer anti-Shia friends
+data_anti_shia_net_low<-subset(data, data$anti_shia_friends_count<=38)
+data_anti_shia_net_high<-subset(data, data$anti_shia_friends_count>38)
+
+#subset data by follower counts
+data_1000_fol<-subset(data, data$followers_count<=1000)
+data_100_fol<-subset(data, data$followers_count<=100)
+data_150_fol<-subset(data, data$followers_count<=150)
+data_200_fol<-subset(data, data$followers_count<=200)
+data_median_fol<-subset(data, data$followers_count<=245)
+data_300_fol<-subset(data, data$followers_count<=300)
+data_350_fol<-subset(data, data$followers_count<=350)
+data_400_fol<-subset(data, data$followers_count<=400)
+data_450_fol<-subset(data, data$followers_count<=450)
+data_500_fol<-subset(data, data$followers_count<=500)
+#suspended accounts
+data$suspended<-ifelse(is.na(data$month_post), 1,0)
+#proportion_variables
+data$prop_pre_tpd<-data$tpd_anti_shia_pre/data$tpd_pre
+data$prop_post_tpd<-data$tpd_anti_shia_post/data$tpd_post
+data$prop_pre_week<-data$week_anti_shia_pre/data$week_pre
+data$prop_post_week<-data$week_anti_shia_post/data$week_post
+data$prop_pre_two_weeks<-data$two_weeks_anti_shia_pre/data$two_weeks_pre
+data$prop_post_two_weeks<-data$two_weeks_anti_shia_post/data$two_weeks_post
+data$prop_pre_month<-data$month_anti_shia_pre/data$month_pre
+data$prop_post_month<-data$month_anti_shia_post/data$month_post
+data[data==Inf]<-NA
+```
+
+Innovations to the original Paper:
+We suspect that there exists significant unstable treatment effects in the original study. This is because, as the  “treatment tweets” (treatment) in the sockpuppet account used for the Twitter experiment keeps increasing, the effect of treatment on the subject decreases if for a later-user who assumes is a bot and discounts a reply from an account. We investigate this by interacting the treatment with a coarsened variable representing when the subject was treated. 
+We divide the treated subjects into three groups ("first third","Second Third","Last Third") depending on the chronological orders that they receive the treatment. 
+
+
+```{r}
+# examine unstable treatment effect by putting da
+data$treatment_num<-as.factor(data$treatment_num)
+#date variable
+data$treatment_date<-as.Date(data$treatment_date, format="%m/%d/%y")
+data$treatment_date2<-as.character(data$treatment_date)
+
+
+treatment_group_1 <- ifelse(data$treatment_date2 <='2018-02-05', "Group 1", NA)
+
+treatment_group_2 <- ifelse(data$treatment_date2 > '2018-02-05' & data$treatment_date2 <='2018-02-12', "Group 2", NA)
+
+treatment_group_3 <- ifelse(data$treatment_date2 >'2018-02-12', "Group 3", NA)
+
+#create a new variable in the full data set called “treatment_group” that takes values “group 1”, “group 2”, etc based on date range
+
+data$treatment_group <- c(na.omit(treatment_group_1),na.omit(treatment_group_2),na.omit(treatment_group_3))
+
+```
+
+Then, we run the regression with an interaction between the treatments and the coarsened variables, respectively. The results are presented in two ways -the original confidence interval plot from the paper, and a result table using the "stargazer" package. 
+```{r,warning=FALSE,message=FALSE}
+# run a regression of “outcome ~ treatment*treatment_group” 
+
+month<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num*treatment_group, data=data)
+two_weeks<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num*treatment_group, 
+              data=data)
+week<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num*treatment_group, data=data)
+day<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num*treatment_group, data=data)
+
+```
+
+```{r,warning=FALSE,message=FALSE}
+#original presentation of the regression results
+
+multiplot(day, week, two_weeks, month,
+          coefficients=c("treatment_num1", "treatment_num2",
+                         "treatment_num3", "treatment_num4", "treatment_num5"),
+          newNames=c(treatment_num1="Arab ID ",
+                     treatment_num2="Religious ID ",
+                     treatment_num3="Arab ID (Elite)",
+                     treatment_num4="Religious ID (Elite)",
+                     treatment_num5=" No ID "),
+          names=c("     Day", "   Week", "  Two Weeks ", "Month    "),
+          title="Figure 4: Regression with Interaction", scales="free_x",
+          sort="alphabetical",
+          innerCI=1.645, outerCI=1.96, single=FALSE,
+          zeroType = 0,legend.position="none") +
+  scale_color_manual(values=c("red", "blue", "seagreen", "black")) +
+  theme_bw() + theme(panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank(),
+                     legend.position="none",
+                     axis.line = element_line(colour = "black"),
+                     text = element_text(size=15))+
+  ylab("Treatments") +
+  xlab("Difference in Anti-Shia Tweet Count")+
+  geom_vline(aes(xintercept = 0), size = .5, linetype = "dashed")
+
+```
+
+```{r,warning=FALSE,message=FALSE}
+# present the data in a different way 
+library(stargazer, warn.conflicts = FALSE)
+stargazer(day, week, two_weeks, month, type="text", title="Figure 5: Regression with Interaction (New Presentation)", align=TRUE,
+          dep.var.labels = c("Day","Week","Two Weeks","Month"),
+          covariate.labels= c("Arab ID","Religious ID","Arab ID (Elite)","Religious ID (Elite)","No ID",
+                              "Group 2","Group 3","Arab ID* Group2","Religious ID *Group2","Arab ID (Elite)*Group2",
+                              "Religious ID (Elite)*Group2","No ID*Group2", "Arab ID* Group3","Religious ID *Group3","Arab ID (Elite)*Group3","Religious ID (Elite)*Group3","No ID*Group3","Constant"),
+          no.space=TRUE,ci=TRUE,ci.level=0.95,single.row = FALSE)
+```
+
+From the regression results, compared to the effect of treatments on Group 1,there exists no significant differences in Group 2 for most treatments. However, the treatment of tweets using No ID (daily) on Group 2 becomes significant at the 5% significance level.  Among the Last Third (Group 3), the treatment of tweets using Religious Elite ID (daily) becomes significant at the 10% significance level. Other treatments, at varying frequencies, remain unchanged and non-significant as in Group 1. 
+
+Since most of the interaction terms are not significant,the treatment probably does not behave differently depending on when the subjects receive the treatment.  
+
+
+
+
+
+
+
+
+

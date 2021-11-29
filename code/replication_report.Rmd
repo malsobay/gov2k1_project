@@ -43,7 +43,7 @@ Figure 1 is a screenshot of the sockpuppet Twitter account, so we begin from Fig
 #Twitter data preprocessing 
 
 #Read in Data
-data<-read.csv("data/twitter_data.csv")
+data<-read.csv("../data/twitter_data.csv")
 
 #Prepare data for analysis 
 
@@ -300,7 +300,7 @@ rm(list = ls())
 
 
 #Read in Data
-data<-read_csv("data/survey_data.csv")
+data<-read_csv("../data/survey_data.csv")
 
 #Prepare Data for Analysis 
 

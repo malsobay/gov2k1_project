@@ -72,6 +72,7 @@ data$prop_pre_month<-data$month_anti_shia_pre/data$month_pre
 data$prop_post_month<-data$month_anti_shia_post/data$month_post
 data[data==Inf]<-NA
 ```
+
 ```{r, message = FALSE, warning = FALSE, echo=FALSE}
 
 #Difference in Means (All Data)
