@@ -137,7 +137,9 @@ Furthermore, by disaggregating, we can argue against the following claim in the 
 
 Interestingly, when comparing Figure 1 to Figure 2, we see that treatment effects are more stable across individual tweets in the counter-sectarian case. This is in line with our earlier prediction that treatment effects would differ for the sectarian tweets depending on the sect; when the tweets do not promote/hate any specific sect, the treatment effects should be less distinguishable from each other.
 
-```{r, out.width=1000, echo=FALSE}
+
+```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual sectarian tweets. Because each tweet opposes a different sect, the treatments vary noticeably in their efficacy based on the tweet in question, and in fact appear to increase support for sectarian tweet \\#2."}
+
 #Sectarian disaggregation 
 
 lm_summaries = data.frame()
@@ -193,7 +195,8 @@ lm_summaries %>% filter(term != "(Intercept)") %>% filter(!(term %like% "sect"))
   scale_color_discrete(limits = c("Sectarian #4", "Sectarian #3", "Sectarian #2", "Sectarian #1", "Aggregated"))
 ```
 
-```{r, out.width=1000, echo=FALSE}
+
+```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual counter-sectarian tweets. Because counter-sectarian tweets generally do not promote a specific sect, there is considerably less item-level variation than that shown in Figure 1 for the sectarian tweets."}
 #Counter-sectarian disaggregation 
 
 lm_summaries = data.frame()
@@ -240,7 +243,8 @@ lm_summaries %>% filter(term != "(Intercept)") %>%
   labs(y="Treatment", x="Estimate", color="Tweet Number") +
   theme(
     panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank()) +
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(hjust = 0)) +
   scale_color_discrete(limits = c("Counter-sectarian #4", "Counter-sectarian #3", "Counter-sectarian #2", "Counter-sectarian #1", "Aggregated"))
 ```
 
