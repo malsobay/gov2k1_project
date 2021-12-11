@@ -138,7 +138,7 @@ Furthermore, by disaggregating, we can argue against the following claim in the 
 Interestingly, when comparing Figure 1 to Figure 2, we see that treatment effects are more stable across individual tweets in the counter-sectarian case. This is in line with our earlier prediction that treatment effects would differ for the sectarian tweets depending on the sect; when the tweets do not promote/hate any specific sect, the treatment effects should be less distinguishable from each other.
 
 
-```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual sectarian tweets. Because each tweet opposes a different sect, the treatments vary noticeably in their efficacy based on the tweet in question, and in fact appear to increase support for sectarian tweet \\#2."}
+```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual sectarian tweets. Because each tweet opposes a different sect, the treatments vary noticeably in their efficacy based on the tweet in question, and in fact appear to increase support for sectarian tweet \\#2.", fig.pos="h!"}
 
 #Sectarian disaggregation 
 
@@ -196,7 +196,7 @@ lm_summaries %>% filter(term != "(Intercept)") %>% filter(!(term %like% "sect"))
 ```
 
 
-```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual counter-sectarian tweets. Because counter-sectarian tweets generally do not promote a specific sect, there is considerably less item-level variation than that shown in Figure 1 for the sectarian tweets."}
+```{r, out.width=1000, echo=FALSE, fig.cap="Treatment effects for each outcome (tweet rating, user rating, and likelihood to share), for the aggregated measure and individual counter-sectarian tweets. Because counter-sectarian tweets generally do not promote a specific sect, there is considerably less item-level variation than that shown in Figure 1 for the sectarian tweets.", fig.pos="h!"}
 #Counter-sectarian disaggregation 
 
 lm_summaries = data.frame()
@@ -255,7 +255,6 @@ As confirmed in communication with the authors, survey subjects occasionally ref
 <!-- Out of 500 participants, 143 refused to evaluate at least one sectarian tweet, 91 refused to evaluate at least one counter-sectarian tweet, and a total of 177 fell in either group. -->
 
 
-
 ```{r, include=FALSE}
 # df$isna_sec_tweet_eval = df %>% select(matches("isna_Tweet[1235]_1")) %>% rowSums() > 0
 
@@ -286,50 +285,16 @@ mean(df$isna_countersec & df$isna_sec)
 
 The aggregation used in the analysis not only dramatically shrinks the sample size, but also invalidates the work that the expensive surveying firm was hired to do: the sample is no longer representative of Lebanon as a whole, but of those that agreed to evaluate each and every tweet, which is a sub-sample that may differ considerably and is difficult to understand. Because of this, it is difficult to interpret the estimated treatment effects as an average treatment effect for a random Lebanese citizen. 
 
+## Estimating the effects of personal characteristics on non-response rates
 To understand the patterns of non-response, we use the vast set of controls employed by the original paper in their robustness tests to estimate whether a respondent will rate a given tweet (see Appendix, Tables 1 & 2). The original paper reports that "...one of the strongest predictors of unfavorable ratings for sectarian tweets and favorable ratings for counter-sectarian tweets in our survey experiment was users’ level of motivation to control prejudice (MCP)--their concern with acting prejudiced or being perceived as prejudiced." To measure this, they regress the aggregated composite measure highlighted in the introduction of this report on several controls, including MCP. Putting aside our concerns regarding the aggregation, the patterns of non-response present an interesting opportunity to test the validity of the MCP measure. Following the logic outlined by the authors, MCP should be predictive of non-response, as fear of sharing a prejudiced sectarian opinion is supposedly the motive behind refusing to answer. We find that MCP is not meaningfully associated with non-response for both sectarian and counter-sectarian tweets. This could either cast doubt on the validity of MCP as a measure, or suggest that the underlying reason for non-response is not what we expect it to be. In the footnotes, the authors describe that the MCP questions from @mcp were modified to refer to sect rather than “Black/White”; depending on the phrasing, sect used in the MCP questionnaire, and the sect of the respondent, the validity of MCP of a measure could be diminished in this context. 
 
 On the other hand, and quite intuitively, we find that the respondent's sect has a large and significant effect on non-response for sectarian tweets (with the exception of #2, which we have previously demonstrated is categorically different). We find no reliable predictors of non-response for counter-sectarian tweets, making a puzzling behavior even more puzzling.  
 
-# Is the measured quantity genuine or performative sectarianism?
-In this survey experiment, people are visited in-person by an employee of the agency conducting the survey, and are asked to rate the aforementioned tweets on an iPad. Presumably, they are conscious of the fact that they are being observed by the surveyor -- the fact that there is a considerable number of cases where participants refuse to respond to some tweets is evidence of this social pressure. The practice of eliciting sensitive behaviors and opinions from surveys is an active field of study and methodological development, with several studies documenting and debating different challenges and biases that can occur [@gnambs;@chiesa]. More specifically, we believe that the design of this survey experiment is susceptible to social desirability bias, by which socially undesirable opinions are underreported [@krumpal]. In spirit, the research intends to measure sectarian attitudes and uses ratings provided in the survey as a proxy of such. In practice, what is being measured is _professed attitude to an observer_, which is subtly but importantly different. 
 
-The implication is that the estimated treatment effect of the primes is actually how _what a respondent tells you_ will change, but not necessarily _what they actually feel_, and there is limited reason to expect the two quantities to align, especially when it comes to contentious sectarian content. Under this design, responses may be performative, with subjects answering the way they _think_ the surveyor wants them to, or in a way deemed "socially acceptable". Given this tendency, it is difficult to understand the practical value of these interventions, and it would be interesting to explore techniques that can help minimize the gap between the two concepts by abstracting the situation away from the self. 
+# Geography does not seem to introduce additional uncertainty towards the original conclusions
+The survey data included information on the subject’s geography, another potentially important piece of context which was not used in either of the basic OLS estimates reported in the paper, nor the controlled regressions in the appendix. The nature of Lebanon’s consociational democracy today consists of ethnic and sectarian cleavages and enhanced polarization. Experts in the region have attempted to understand the nature of these divisions to address consistent issues Lebanon faces such as an absence of a social policy framework, weak coordination and governance, and politically targeting sectarian groups [@salti]. Given the context of Lebanon’s consociational democracy and ethnic distribution based on religious sect, we want to cluster the standard errors of the treatment effect by the different geographic/administrative levels provided to assess the robustness of the findings.
 
-One potential experimental modification to combat social desirability bias could have been to design the survey as a list experiment [@glynn;@imai]. Under this design, rather than directly asking participants to rate a collection of sectarian and counter-sectarian tweets, participants in each prime treatment group would be asked how many tweets they agreed with from a list presented. Within each treatment group, half the participants would be shown a list of non-controversial tweets, while the other half would be shown the non-controversial tweets with a few controversial (sectarian) tweets mixed in. Within this setup, one could estimate the proportion of participants in each treatment group that agree with the sectarian tweets, and compare the estimated proportions across treatment groups. 
-
-# Methodological Extension #1: Potentially unstable treatment effects 
-In the Twitter experiment conducted by the authors, they use a "sockpuppet" Twitter account, which is a fake persona designed to look like a real user. The experiment is to reply to 957 random accounts tweeting sectarian content with one of the 4 primes used in the survey experiment (albeit with slightly different phrasing), and then measure whether this intervention decreases their production of sectarian tweets. 
-
-Because the replies coming from the sockpuppet account are identical, if a subject treated later in the experiment opened the sockpuppet's account page and saw what appeared to be "spammy" replies (hundreds of replies with exactly the same phrasing), the subject might discount the sockpuppet as a bot and the treatment may lose efficacy. 
-
-To explore this potential effect, we split the data into 3 groups based on when they were treated: the first third, the second third, and the last third. We then measure the interaction between the treatment and this coarsened order of treatment, and find no substantial evidence that this dynamic is occurring, as indicated by the null interaction effects in Table 3. 
-
-```{r, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
-knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
-
-df_twitter = read_csv("../data/twitter_data.csv")
-df_twitter$treatment_num = as.factor(df_twitter$treatment_num)
-df_twitter$treatment_group = case_when(df_twitter$subject_id <= 319 ~ "Group1", 
-                                      df_twitter$subject_id > 319 & df_twitter$subject_id <= 638~ "Group2", 
-                                      df_twitter$subject_id > 638 ~ "Group3")
-
-lm_day<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
-lm_week<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
-lm_twoweeks<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
-lm_month<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
-
-stargazer(lm_day, lm_week, lm_twoweeks, lm_month, type="latex",
-          dep.var.labels = c("Day", "Week", "2 Weeks", "Month"),
-          covariate.labels= c("Arab ID","Religious ID","Arab ID (Elite)","Religious ID (Elite)","No ID",
-                              "Group 2","Group 3","Arab ID* Group2","Religious ID *Group2","Arab ID (Elite)*Group2",
-                              "Religious ID (Elite)*Group2","No ID*Group2", "Arab ID* Group3","Religious ID *Group3",
-                              "Arab ID (Elite)*Group3","Religious ID (Elite)*Group3","No ID*Group3","Constant"),
-          header=FALSE,font.size = "scriptsize",
-          title="Interaction between Twitter intervention and intervention group",
-          table.placement = "h!")
-
-```
-
+The three geographical data points collected in the survey were "mohafaza", "caza", and "city". Within Lebanon, cazas are districts embedded in the larger county level of mohafaza districts. Since "city" is nested within the other two variables (as it is the smallest of the terms), we chose to cluster the models included in the survey data analysis by city. These analyses mirror those from @no2sec, and include the effect of the primes on all tweet ratings as well as the effect of the primes on sectarian and counter-sectarian tweet ratings. We find that the coefficients are the same with only slight differences in standard errors. This indicates that the conclusions drawn do not deviate even when clustering by location, as shown in Table 4 (for the combined rating, as described in the background), Table 5 (for the sectarian tweets), and Table 6 (for the counter-sectarian tweets). We use the aggregated measures from @no2sec as the dependent variable here to hold that part constant in comparison with @no2sec, such that the only difference here is in how the standard errors are clustered.
 
 ```{r, echo=FALSE, message=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 # Survey data preprocessing 
@@ -384,13 +349,6 @@ library(broom)
 library(RobustSE)
 
 ```
-
-# Methodological Extension #2: clustered standard errors over geographical area
-The survey data included information on the subject’s geography, which was not used in either of the basic OLS estimates reported in the paper, nor the controlled regressions in the appendix. The nature of Lebanon’s consociational democracy today consists of ethnic and sectarian cleavages and enhanced polarization. Experts in the region have attempted to understand the nature of these divisions to address consistent issues Lebanon faces such as an absence of a social policy framework, weak coordination and governance, and politically targeting sectarian groups [@salti]. Given the context of Lebanon’s consociational democracy and ethnic distribution based on religious sect, we want to cluster the standard errors of the treatment effect by the different geographic/administrative levels provided to assess the robustness of the findings.
-
-The three geographical data points collected in the survey were "mohafaza", "caza", and "city". Within Lebanon, cazas are districts embedded in the larger county level of mohafaza districts. Since "city" is nested within the other two variables (as it is the smallest of the terms), we chose to cluster the models included in the survey data analysis by city. These analyses mirror those from @no2sec, and include the effect of the primes on all tweet ratings as well as the effect of the primes on sectarian and counter-sectarian tweet ratings. We find that the coefficients are the same with only slight differences in standard errors. This indicates that the conclusions drawn do not deviate even when clustering by location, as shown in Table 4 (for the combined rating, as described in the background), Table 5 (for the sectarian tweets), and Table 6 (for the counter-sectarian tweets). We use the aggregated measures from @no2sec as the dependent variable here to hold that part constant in comparison with @no2sec, such that the only difference here is in how the standard errors are clustered.
-
-
 
 ```{r, out.width="400px", out.height="300px", message=FALSE, echo=FALSE, results='asis'}
 #Regressions for model 1- tweet rating in Figure 6
@@ -463,8 +421,54 @@ stargazer(model1, coeftest(model1, vcovCL, cluster=data$City),
 ```
 
 
+# The survey experiment appears susceptible to social desirability bias
+In addition to the analysis of the experimental data, it is important for us to critically examine the process by which the data were generated. In this survey experiment, people are visited in-person by an employee of the agency conducting the survey, and are asked to rate the aforementioned tweets on an iPad. Presumably, they are conscious of the fact that they are being observed by the surveyor -- the fact that there is a considerable number of cases where participants refuse to respond to some tweets is evidence of this social pressure. The practice of eliciting sensitive behaviors and opinions from surveys is an active field of study and methodological development, with several studies documenting and debating different challenges and biases that can occur [@gnambs;@chiesa]. More specifically, we believe that the design of this survey experiment is susceptible to social desirability bias, by which socially undesirable opinions are underreported [@krumpal]. In spirit, the research intends to measure sectarian attitudes and uses ratings provided in the survey as a proxy of such. In practice, what is being measured is _professed attitude to an observer_, which is subtly but importantly different. 
+
+The implication is that the estimated treatment effect of the primes is actually how _what a respondent tells you_ will change, but not necessarily _what they actually feel_, and there is limited reason to expect the two quantities to align, especially when it comes to contentious sectarian content. Under this design, responses may be performative, with subjects answering the way they _think_ the surveyor wants them to, or in a way deemed "socially acceptable". Given this tendency, it is difficult to understand the practical value of these interventions, and it would be interesting to explore techniques that can help minimize the gap between the two concepts by abstracting the situation away from the self. 
+
+One potential experimental modification to combat social desirability bias could have been to design the survey as a list experiment [@glynn;@imai]. Under this design, rather than directly asking participants to rate a collection of sectarian and counter-sectarian tweets, participants in each prime treatment group would be asked how many tweets they agreed with from a list presented. Within each treatment group, half the participants would be shown a list of non-controversial tweets, while the other half would be shown the non-controversial tweets with a few controversial (sectarian) tweets mixed in. Within this setup, one could estimate the proportion of participants in each treatment group that agree with the sectarian tweets, and compare the estimated proportions across treatment groups. 
+
+## Exploring potentially unstable treatment effects in the Twitter experiment   
+In the Twitter experiment conducted by the authors, they use a "sockpuppet" Twitter account, which is a fake persona designed to look like a real user. The experiment is to reply to 957 random accounts tweeting sectarian content with one of the 4 primes used in the survey experiment (albeit with slightly different phrasing), and then measure whether this intervention decreases their production of sectarian tweets. 
+
+Because the replies coming from the sockpuppet account are identical, if a subject treated later in the experiment opened the sockpuppet's account page and saw what appeared to be "spammy" replies (hundreds of replies with exactly the same phrasing), the subject might discount the sockpuppet as a bot and the treatment may lose efficacy. Although the data from the Twitter experiment is limited, we found this to be a worthwhile question that was answerable with the data provided. 
+
+To explore this potential effect, we split the data into 3 groups based on when they were treated: the first third, the second third, and the last third. We then measure the interaction between the treatment and this coarsened order of treatment, and find no substantial evidence that this dynamic is occurring, as indicated by the null interaction effects in Table 3. 
+
+```{r, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
+
+df_twitter = read_csv("../data/twitter_data.csv")
+df_twitter$treatment_num = as.factor(df_twitter$treatment_num)
+df_twitter$treatment_group = case_when(df_twitter$subject_id <= 319 ~ "Group1", 
+                                      df_twitter$subject_id > 319 & df_twitter$subject_id <= 638~ "Group2", 
+                                      df_twitter$subject_id > 638 ~ "Group3")
+
+lm_day<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_week<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_twoweeks<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_month<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+
+stargazer(lm_day, lm_week, lm_twoweeks, lm_month, type="latex",
+          dep.var.labels = c("Day", "Week", "2 Weeks", "Month"),
+          covariate.labels= c("Arab ID","Religious ID","Arab ID (Elite)","Religious ID (Elite)","No ID",
+                              "Group 2","Group 3","Arab ID* Group2","Religious ID *Group2","Arab ID (Elite)*Group2",
+                              "Religious ID (Elite)*Group2","No ID*Group2", "Arab ID* Group3","Religious ID *Group3",
+                              "Arab ID (Elite)*Group3","Religious ID (Elite)*Group3","No ID*Group3","Constant"),
+          header=FALSE,font.size = "scriptsize",
+          title="Interaction between Twitter intervention and intervention group",
+          table.placement = "h!")
+
+```
+
+
 \newpage
 # Conclusions 
+By disaggregating the results of the survey experiment and estimating treatment effects for each tweet separately, we discover that the aggregated measures obscure important heterogeneity in the effects of the counter-sectarian primes -- the primes appear to increase support for some forms of hate speech! This heterogeneity could have significant impact on the utility of the findings in @no2sec for real-world policy-making, as a counter-sectarian communication strategy based on the aggregated findings could lead to unintended harms by unintentially amplifying other forms of hate speech. On the other hand, we find that despite the nature of Lebanon's consociational democracy, taking geography into account does not noticeably change the conclusions of the original analysis.  
+
+The real-world utility of the survey experiment's results is further stunted by the limited external validity of the findings, due to patterns of survey non-response that were previously unaccounted for. We find that refusal to rate sectarian tweets is significantly tied to the sect of the respondent, and found no reliable personal traits to estimate non-response. To limit the likelihood of non-response, and potentially decrease the bias caused by a hesitation to express sectarian views, we propose an alternative list experiment design for the survey. 
+
+The extensions we have introduced demonstrate the difficulty of designing experiments with the goal of informing policy. Threats to external and internal validity abound, and aggregation makes it difficult to see these potential shortfalls clearly. The difficulty is compounded when studying sensitive topics, but the broad literature on survey design provides potential pathways forward. Managing sectarian hate speech is an important problem to solve everywhere, and we are confident that context- and bias-aware approaches will allow us to develop solutions with a higher degree of confidence in the outcome. 
 
 
 # Acknowledgements 
