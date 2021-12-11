@@ -1,0 +1,524 @@
+---
+title: "An extension of Siegel & Badaan 2020 (Working title)"
+author: "Mohammed Alsobay, Sumaya Malas, Tianyu Qiao (Team 2.5 Arabs)"
+date: "11/29/2021"
+output: pdf_document
+urlcolor: blue
+bibliography: bibliography.bib  
+abstract: "Using two experiments, one via Twitter and another via in-person surveys, @no2sec report that counter-sectarian primes can reduce the production and tolerance of sectarian hate speech. Diving deeper into the data provided by the authors, we find that the analyses conducted in @no2sec aggregate data in a way that obscures heterogeneity of practical importance; in fact, we find that the counter-sectarian primes can increase the tolerance of a certain form of hate speech. We also find that the original analyses ignore non-response patterns in a way that threatens the external validity of their findings, and explore patterns of non-response among subjects. Finally, we argue that the design of the survey experiment is susceptible to biases related to self-declaration of sensitive opinions, and suggest a potential alternative.^[Replication and extension materials can be found at our Dataverse repository ADD LINK]" 
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(here)
+library(lme4)
+library(stargazer)
+library(coefplot)
+library(ggstance)
+library(broom)
+library(data.table)
+here::here()
+
+getwd()
+```
+
+<!-- Preprocessing -->
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results=FALSE}
+tweet_cols = c("Tweet1_1", "Tweet1_2", "Tweet1_3",
+               "Tweet2_1", "Tweet2_2", "Tweet2_3",
+               "Tweet3_1", "Tweet3_2", "Tweet3_3",
+               "Tweet4_1", "Tweet4_2", "Tweet4_3",
+               "Tweet5_1", "Tweet5_2", "Tweet5_3",
+               "Tweet6_1", "Tweet6_2", "Tweet6_3",
+               "Tweet7_1", "Tweet7_2", "Tweet7_3",
+               "Tweet8_1", "Tweet8_2", "Tweet8_3")
+
+sec_tweets = c(1,2,3,5)
+countersec_tweets = c(4,6,7,8)
+
+
+# %>% select(c(tweet_cols, "Id", "Prmt", "Sect"))
+df = read_csv("../data/survey_data.csv")  %>%
+  mutate(treatment = as.factor(case_when(Prmt == 1 ~ "Control",
+                                         Prmt == 2 ~ "Religious",
+                                         Prmt == 3 ~ "National",
+                                         Prmt == 4 ~ "ReligiousElite",
+                                         Prmt == 5 ~ "NationalElite")),
+         Id = as.factor(Id),
+         Sect = as.factor(case_when(Sect == 1 ~ "Maronite",
+          Sect == 2 ~ "Greek Orthodox",
+          Sect == 3 ~ "Catholic",
+          Sect == 5 ~ "Armenian Orthodox",
+          Sect == 6 ~ "Armenian Catholic",
+          Sect == 7 ~ "Sunni",
+          Sect == 8 ~ "Shia",
+          Sect == 9 ~ "Druze",
+          Sect == 10 ~ "Alawite",
+          Sect == 11 ~ "Christian min."))) 
+
+df$sect_coarse = as.factor(ifelse(df$Sect %in% c("Sunni", "Shia", "Druze"), yes = as.character(df$Sect), no="Christian"))
+df$Sect = relevel(df$Sect, ref="Shia")
+df$sect_coarse = relevel(df$sect_coarse, ref="Shia")
+
+isna_cols = paste("isna_", tweet_cols, sep="")
+
+df[,isna_cols] = df %>% dplyr::select(tweet_cols) %>% is.na()
+
+df = df %>% mutate(anyna_tweet1 = isna_Tweet1_1 | isna_Tweet1_2 | isna_Tweet1_3,
+                   anyna_tweet2 = isna_Tweet2_1 | isna_Tweet2_2 | isna_Tweet2_3,
+                   anyna_tweet3 = isna_Tweet3_1 | isna_Tweet3_2 | isna_Tweet3_3,
+                   anyna_tweet5 = isna_Tweet5_1 | isna_Tweet5_2 | isna_Tweet5_3,
+                   anyna_tweet4 = isna_Tweet4_1 | isna_Tweet4_2 | isna_Tweet4_3,
+                   anyna_tweet6 = isna_Tweet6_1 | isna_Tweet6_2 | isna_Tweet6_3,
+                   anyna_tweet7 = isna_Tweet7_1 | isna_Tweet7_2 | isna_Tweet7_3,
+                   anyna_tweet8 = isna_Tweet8_1 | isna_Tweet8_2 | isna_Tweet8_3,
+                   relig_index = df %>% select(matches("relig[0-9]")) %>% rowMeans(),
+                   sectarian_index = df %>% select(matches("sectarian[0-9]")) %>% rowMeans(),
+                   sectsj_index = df %>% select(matches("sectsj[0-9]")) %>% rowMeans(),
+                   mcp_index = df %>% select(matches("mcp[0-9]")) %>% rowMeans())
+
+
+#Counter Sectarian Tweets
+#rating
+df$counter_sec1<-(df$Tweet8_1+df$Tweet6_1+df$Tweet4_1+df$Tweet7_1)/4
+#person rating
+df$counter_sec2<-(df$Tweet8_2+df$Tweet6_2+df$Tweet4_2+df$Tweet7_2)/4
+#sharing likelihood
+df$counter_sec3<-(df$Tweet8_3+df$Tweet6_3+df$Tweet4_3+df$Tweet7_3)/4
+
+#Sectarian Tweets 
+#rating
+df$sec1<-(df$Tweet1_1+df$Tweet2_1+df$Tweet3_1+df$Tweet5_1)/4
+#person rating
+df$sec2<-(df$Tweet1_2+df$Tweet2_2+df$Tweet3_2+df$Tweet5_2)/4
+#sharing likelihood
+df$sec3<-(df$Tweet1_3+df$Tweet2_3+df$Tweet3_3+df$Tweet5_3)/4
+
+
+
+```
+
+
+# Introduction
+@no2sec explores the efficacy of priming messages to reduce online sectarian hate speech, which is a form of anti-outgroup messaging in which the groups are defined by religious sect. In @no2sec, the authors conduct two experiments to estimate the effect of counter-sectarian primes on sectarian attitudes: one on Twitter, and another through a field survey. In both experiments, the authors report that counter-sectarian priming from an elite religious figure may be most effective in reducing the production and reception of sectarian content online.
+
+In the Twitter experiment, a “sockpuppet” account was created to respond to sectarian hate speech broadcast via Twitter with counter-sectarian messages, with impact measured by the difference in sectarian tweet counts before and after the intervention. While the twitter experiment is interesting, the data is only available in a highly pre-processed format (due to concerns regarding research ethics), making it difficult to explore alternative analyses and assumptions. Consequently, in this work, we focus on extending the analysis of the survey experiment, with an overarching goal of highlighting the importance of context and subject behavior in analyzing the experimental results. 
+
+In the survey experiment, a firm approached a representative sample of 500 participants from Lebanese society and asked them to rate a total of 8 tweets, 4 of which were "sectarian" and 4 of which were "counter-sectarian" in nature. The participants were asked to rate the content of the tweet itself, the person who wrote the tweet, and how likely they were to share the tweet themselves, all on a scale of 1-10, with lower values indicating negative perception and lower likelihood to share. Participants were randomly assigned to either a control condition, or to receiving one of four priming statements before rating the tweets (translated from Arabic by the authors):
+
+* __Control statement:__ Over the past few years, there has been a rise in sectarian tensions in Lebanon and across the Middle East. 
+
+Each of the treatments is a prime that begins with the control statement, followed by supporting context to establish the religious/national and elite/non-elite versions of the treatments: 
+
+* __National identity prime:__  [Control statement]  _But many people agree that their sect does not make them better than anyone else. They agree that we are all Lebanese and we all should be equal. We all live on one land. We share the same history and the same future; we share the same culture, the same food, and language. Most importantly, we share a common Lebanese identity._
+
+* __Religious identity prime:__ [Control statement] _But many people agree that their sect does not make them better than anyone else. They agree that we all believe in one God and we should all be equal. We all live on one land, we share the same history and the same future; we share the same culture, the same food, and language. Most importantly, we share a common belief in God._ 
+
+* __Elite-endorsed national ID prime:__  [Control statement] _But many prominent politicians including members of the March 8 bloc, the March 14 bloc, and independents have called for people to come together. They agree that we are all Lebanese..._
+
+* __Elite-endorsed religious ID prime:__ [Control statement] _But many prominent Christian, Sunni, and Shia religious leaders have issued religious decrees calling for people to come together and stop inciting sectarian hatreds. They agree that we all believe in one God..._
+
+The original paper measures the treatment effects on three outcomes of interest: (1) the average rating across all sectarian tweets; (2) the average rating across all counter-sectarian tweets; and (3) total counter-sectarian sentiment, which they define as the difference between (2) and (1). We argue that the way the outcomes were aggregated in the original paper obscures important heterogeneity in sentiment and response patterns, and introduces complications in understanding the external validity of the study's results. Furthermore, we discuss elements of the experimental design that cast doubt on how well the collected data represents the intended quantity of interest. 
+
+
+
+
+# Using the average rating of sectarian content as a dependent variable obscures important item-level variation 
+
+The paper reports that each of the sectarian tweets targets a single sect, with the targeted sects being Sunnis, Shia, Christians, and Druze. On the other hand, the counter-sectarian tweets are generically counter-sectarian, i.e. they call for unity, but do not promote a specific sect. Because people from different sects may respond differently to sectarian tweets and counter-sectarian primes depending on the relationship between their personal sect and the targeted sect, it would be reasonable to expect different treatment efficacy for each of the sectarian tweets; this heterogeneity is obscured by averaging across tweets. 
+
+To contextualize the differences observed between individual tweets in the survey experiment, we contacted the authors for the exact phrasing of the tweets used in Arabic. As native Arabic speakers, we are able to faithfully translate these into English, and discuss how the nuance of the phrasing affects this experiment (see Appendix 1).  First, we note that contrary to the paper's claim, none of the sectarian tweets refer to Druze specifically. Second, it's important to note that, with the exception of #2, each of the sectarian tweets is confounded by considerable geopolitical undertones: #1 refers to Iran, #3 is more readily interpreted as an attack on either of the "Free Patriotic Movement" or "Marada" parties, and #4 mixes in the complexities of ISIS perception. In a country where party and religious lines nearly coincide, it is difficult to disentangle political and sectarian sentiment. 
+
+Sectarian tweet #2, which states “I am a muslim [translator note: female] and I hate non-believers because they do not worship God [Allah]”, highlights a flaw in the experimental design; although it promotes a form of hate, that hate is more accurately described as "anti-atheist" rather than sectarian, as it describes hatred for those who do not believe in or worship God. All the primes emphasize shared identity, with the religious primes specifically highlighting a shared belief in God among religions, and this is likely why we observe in Figure 1 that the primes actually _increase_ professed support for this tweet (with the exception of the religious elite prime, which has no effect). This example alone highlights the heterogeneity in item-level effects and potential unintended harms, which is enough to warrant the disaggregation of the analysis. 
+
+Furthermore, by disaggregating, we can argue against the following claim in the paper: "the common-national-identity treatment (without elite support) actually had a backlash effect on sectarian tweet ratings, increasing favorability ratings of both the tweets themselves and the users who sent them". We see that, in fact, the national ID prime had null effects on all sectarian tweets except tweet #2, which we have demonstrated is categorically different from the rest; thus, we do not believe the purported "backlash effect" is supported by the experimental data. 
+
+Interestingly, when comparing Figure 1 to Figure 2, we see that treatment effects are more stable across individual tweets in the counter-sectarian case. This is in line with our earlier prediction that treatment effects would differ for the sectarian tweets depending on the sect; when the tweets do not promote/hate any specific sect, the treatment effects should be less distinguishable from each other.
+
+```{r, out.width=1000, echo=FALSE}
+#Sectarian disaggregation 
+
+lm_summaries = data.frame()
+
+for (tweet_number in c(1,2,3,5)) {
+  for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment", sep=""), data=df)
+    # lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment + sect_coarse", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = tweet_number,
+                                      outcome_number = outcome_number))
+  }
+}
+
+for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("sec",outcome_number,"~treatment", sep=""), data=df)
+    # lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment + sect_coarse", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = -1,
+                                      outcome_number = outcome_number))
+}
+
+
+
+
+
+lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
+lm_summaries$outcome_label = factor(case_when(lm_summaries$outcome_number == 1 ~ "Tweet Rating",
+                                       lm_summaries$outcome_number == 2 ~ "User Rating",
+                                       lm_summaries$outcome_number == 3 ~ "Likelihood to Share"))
+
+lm_summaries$term = str_remove(lm_summaries$term, "treatment")
+lm_summaries$tweet_number_clean = factor(case_when(lm_summaries$tweet_number == 1 ~ "Sectarian #1",
+                                                   lm_summaries$tweet_number == 2 ~ "Sectarian #2",
+                                                   lm_summaries$tweet_number == 3 ~ "Sectarian #3",
+                                                   lm_summaries$tweet_number == 5 ~ "Sectarian #4",
+                                                   lm_summaries$tweet_number == -1 ~ "Aggregated"))
+
+#Summarizing plot 
+lm_summaries %>% filter(term != "(Intercept)") %>% filter(!(term %like% "sect")) %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number_clean)) + 
+  labs(title="Fig 1. Effect of treatments on sectarian tweet evaluations") + 
+  geom_point(position=ggstance::position_dodgev(height=0.6)) +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.6)) + 
+  geom_vline(xintercept=0) + 
+  facet_grid(.~factor(outcome_label, levels=c("Tweet Rating", "User Rating", "Likelihood to Share"))) + 
+  labs(y="Treatment", x="Estimate", color="Tweet Number") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()) +
+  scale_color_discrete(limits = c("Sectarian #4", "Sectarian #3", "Sectarian #2", "Sectarian #1", "Aggregated"))
+```
+
+```{r, out.width=1000, echo=FALSE}
+#Counter-sectarian disaggregation 
+
+lm_summaries = data.frame()
+
+for (tweet_number in c(4,6,7,8)) {
+  for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = tweet_number,
+                                      outcome_number = outcome_number))
+  }
+}
+
+for (outcome_number in c(1,2,3)) {
+    lm_temp = lm(paste("counter_sec",outcome_number,"~treatment", sep=""), data=df)
+    # lm_temp = lm(paste("Tweet",tweet_number,"_",outcome_number,"~treatment + sect_coarse", sep=""), data=df)
+    lm_summaries = bind_rows(lm_summaries, 
+                             tidy(lm_temp) %>% 
+                               mutate(tweet_number = -1,
+                                      outcome_number = outcome_number))
+}
+
+lm_summaries = lm_summaries %>% mutate(tweet_number = as.factor(tweet_number), outcome_number = as.factor(outcome_number))
+lm_summaries$outcome_label = factor(case_when(lm_summaries$outcome_number == 1 ~ "Tweet Rating",
+                                       lm_summaries$outcome_number == 2 ~ "User Rating",
+                                       lm_summaries$outcome_number == 3 ~ "Likelihood to Share"))
+
+lm_summaries$term = str_remove(lm_summaries$term, "treatment")
+lm_summaries$tweet_number_clean = factor(case_when(lm_summaries$tweet_number == 4 ~ "Counter-sectarian #1",
+                                                   lm_summaries$tweet_number == 6 ~ "Counter-sectarian #2",
+                                                   lm_summaries$tweet_number == 7 ~ "Counter-sectarian #3",
+                                                   lm_summaries$tweet_number == 8 ~ "Counter-sectarian #4",
+                                                   lm_summaries$tweet_number == -1 ~ "Aggregated"))
+
+#Summarizing plot 
+lm_summaries %>% filter(term != "(Intercept)") %>%  
+  ggplot(aes(x=estimate, y=term, xmin=estimate-1.96*std.error, xmax=estimate+1.96*std.error, color=tweet_number_clean)) + 
+  labs(title="Fig 2. Effect of treatments on sectarian tweet evaluations") + 
+  geom_point(position=ggstance::position_dodgev(height=0.6)) +
+  geom_errorbar(position=ggstance::position_dodgev(height=0.6)) + 
+  geom_vline(xintercept=0) + 
+  facet_grid(.~factor(outcome_label, levels=c("Tweet Rating", "User Rating", "Likelihood to Share"))) + 
+  labs(y="Treatment", x="Estimate", color="Tweet Number") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()) +
+  scale_color_discrete(limits = c("Counter-sectarian #4", "Counter-sectarian #3", "Counter-sectarian #2", "Counter-sectarian #1", "Aggregated"))
+```
+
+
+# Ignoring non-response critically threatens the external validity of survey experiment results 
+As confirmed in communication with the authors, survey subjects occasionally refused to answer some of the evaluations, and these were recorded in the data as null values. Out of 500 participants, 28% refused to answer at least one query about a sectarian tweet, and 20% refused to answer at least one query about a counter-sectarian tweet, with 12% of participants refusing to answer at least one query in both categories. Consequently, when the original paper aggregates across tweets by taking an average, any participant that refused to evaluate any of the relevant tweets would have a null value for their aggregated measure. 
+
+<!-- Out of 500 participants, 143 refused to evaluate at least one sectarian tweet, 91 refused to evaluate at least one counter-sectarian tweet, and a total of 177 fell in either group. -->
+
+
+
+```{r, include=FALSE}
+# df$isna_sec_tweet_eval = df %>% select(matches("isna_Tweet[1235]_1")) %>% rowSums() > 0
+
+# Look at difference by sect
+# bind_rows(table(df$Sect) / length(df$Sect),
+# table((df %>% filter(isna_sec_tweet_eval))$Sect) / length((df %>% filter(isna_sec_tweet_eval))$Sect),
+# table((df %>% filter(!isna_sec_tweet_eval))$Sect) / length((df %>% filter(!isna_sec_tweet_eval))$Sect))
+
+#Total missing sectarian ratings 
+# sum(df %>% select(matches("isna_Tweet[1235]_[1-3]")))
+
+#Total missing countersectarian ratings
+# sum(df %>% select(matches("isna_Tweet[4678]_[1-3]")))
+
+df$isna_sec = df %>% select(matches("isna_Tweet[1235]_[1-3]")) %>% rowSums() > 0
+df$isna_countersec = df %>% select(matches("isna_Tweet[4678]_[1-3]")) %>% rowSums() > 0
+
+#Pct users with at least one null sectarian rating 
+mean(df$isna_sec)
+
+#Pct users with at least one null countersectarian rating 
+mean(df$isna_countersec)
+
+#Pct users with at least one null rating, regardless of tweet type
+mean(df$isna_countersec & df$isna_sec)
+```
+
+
+The aggregation used in the analysis not only dramatically shrinks the sample size, but also invalidates the work that the expensive surveying firm was hired to do: the sample is no longer representative of Lebanon as a whole, but of those that agreed to evaluate each and every tweet, which is a sub-sample that may differ considerably and is difficult to understand. Because of this, it is difficult to interpret the estimated treatment effects as an average treatment effect for a random Lebanese citizen. 
+
+To understand the patterns of non-response, we use the vast set of controls employed by the original paper in their robustness tests to estimate whether a respondent will rate a given tweet (see Appendix, Tables 1 & 2). The original paper reports that "...one of the strongest predictors of unfavorable ratings for sectarian tweets and favorable ratings for counter-sectarian tweets in our survey experiment was users’ level of motivation to control prejudice (MCP)--their concern with acting prejudiced or being perceived as prejudiced." To measure this, they regress the aggregated composite measure highlighted in the introduction of this report on several controls, including MCP. Putting aside our concerns regarding the aggregation, the patterns of non-response present an interesting opportunity to test the validity of the MCP measure. Following the logic outlined by the authors, MCP should be predictive of non-response, as fear of sharing a prejudiced sectarian opinion is supposedly the motive behind refusing to answer. We find that MCP is not meaningfully associated with non-response for both sectarian and counter-sectarian tweets. This could either cast doubt on the validity of MCP as a measure, or suggest that the underlying reason for non-response is not what we expect it to be. In the footnotes, the authors describe that the MCP questions from @mcp were modified to refer to sect rather than “Black/White”; depending on the phrasing, sect used in the MCP questionnaire, and the sect of the respondent, the validity of MCP of a measure could be diminished in this context. 
+
+On the other hand, and quite intuitively, we find that the respondent's sect has a large and significant effect on non-response for sectarian tweets (with the exception of #2, which we have previously demonstrated is categorically different). We find no reliable predictors of non-response for counter-sectarian tweets, making a puzzling behavior even more puzzling.  
+
+# Is the measured quantity genuine or performative sectarianism?
+In this survey experiment, people are visited in-person by an employee of the agency conducting the survey, and are asked to rate the aforementioned tweets on an iPad. Presumably, they are conscious of the fact that they are being observed by the surveyor -- the fact that there is a considerable number of cases where participants refuse to respond to some tweets is evidence of this social pressure. The practice of eliciting sensitive behaviors and opinions from surveys is an active field of study and methodological development, with several studies documenting and debating different challenges and biases that can occur [@gnambs;@chiesa]. More specifically, we believe that the design of this survey experiment is susceptible to social desirability bias, by which socially undesirable opinions are underreported [@krumpal]. In spirit, the research intends to measure sectarian attitudes and uses ratings provided in the survey as a proxy of such. In practice, what is being measured is _professed attitude to an observer_, which is subtly but importantly different. 
+
+The implication is that the estimated treatment effect of the primes is actually how _what a respondent tells you_ will change, but not necessarily _what they actually feel_, and there is limited reason to expect the two quantities to align, especially when it comes to contentious sectarian content. Under this design, responses may be performative, with subjects answering the way they _think_ the surveyor wants them to, or in a way deemed "socially acceptable". Given this tendency, it is difficult to understand the practical value of these interventions, and it would be interesting to explore techniques that can help minimize the gap between the two concepts by abstracting the situation away from the self. 
+
+One potential experimental modification to combat social desirability bias could have been to design the survey as a list experiment [@glynn;@imai]. Under this design, rather than directly asking participants to rate a collection of sectarian and counter-sectarian tweets, participants in each prime treatment group would be asked how many tweets they agreed with from a list presented. Within each treatment group, half the participants would be shown a list of non-controversial tweets, while the other half would be shown the non-controversial tweets with a few controversial (sectarian) tweets mixed in. Within this setup, one could estimate the proportion of participants in each treatment group that agree with the sectarian tweets, and compare the estimated proportions across treatment groups. 
+
+# Methodological Extension #1: Potentially unstable treatment effects 
+In the Twitter experiment conducted by the authors, they use a "sockpuppet" Twitter account, which is a fake persona designed to look like a real user. The experiment is to reply to 957 random accounts tweeting sectarian content with one of the 4 primes used in the survey experiment (albeit with slightly different phrasing), and then measure whether this intervention decreases their production of sectarian tweets. 
+
+Because the replies coming from the sockpuppet account are identical, if a subject treated later in the experiment opened the sockpuppet's account page and saw what appeared to be "spammy" replies (hundreds of replies with exactly the same phrasing), the subject might discount the sockpuppet as a bot and the treatment may lose efficacy. 
+
+To explore this potential effect, we split the data into 3 groups based on when they were treated: the first third, the second third, and the last third. We then measure the interaction between the treatment and this coarsened order of treatment, and find no substantial evidence that this dynamic is occurring, as indicated by the null interaction effects in Table 3. 
+
+```{r, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
+
+df_twitter = read_csv("../data/twitter_data.csv")
+df_twitter$treatment_num = as.factor(df_twitter$treatment_num)
+df_twitter$treatment_group = case_when(df_twitter$subject_id <= 319 ~ "Group1", 
+                                      df_twitter$subject_id > 319 & df_twitter$subject_id <= 638~ "Group2", 
+                                      df_twitter$subject_id > 638 ~ "Group3")
+
+lm_day<-lm(tpd_anti_shia_post-tpd_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_week<-lm(week_anti_shia_post-week_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_twoweeks<-lm(two_weeks_anti_shia_post-two_weeks_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+lm_month<-lm(month_anti_shia_post-month_anti_shia_pre ~ treatment_num*treatment_group, data=df_twitter)
+
+stargazer(lm_day, lm_week, lm_twoweeks, lm_month, type="latex",
+          dep.var.labels = c("Day", "Week", "2 Weeks", "Month"),
+          covariate.labels= c("Arab ID","Religious ID","Arab ID (Elite)","Religious ID (Elite)","No ID",
+                              "Group 2","Group 3","Arab ID* Group2","Religious ID *Group2","Arab ID (Elite)*Group2",
+                              "Religious ID (Elite)*Group2","No ID*Group2", "Arab ID* Group3","Religious ID *Group3",
+                              "Arab ID (Elite)*Group3","Religious ID (Elite)*Group3","No ID*Group3","Constant"),
+          header=FALSE,font.size = "scriptsize",
+          title="Interaction between Twitter intervention and intervention group",
+          table.placement = "h!")
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+# Survey data preprocessing 
+# rm(list = ls())
+
+
+#Read in Data
+data<-read_csv("../data/survey_data.csv")
+
+#Prepare Data for Analysis 
+
+#Covariate Indices (average responses)
+data$relig<-(data$relig1+data$relig2+data$relig3+data$relig4+data$relig5+data$relig6+data$relig7+data$relig8+data$relig9+data$relig10+data$relig11+data$relig12)/12
+data$sectarian<-(data$sectarian1+data$sectarian2+data$sectarian3+data$sectarian4+data$sectarian5)/5
+data$sectsj<-(data$sectsj1+data$sectsj2+data$sectsj3+data$sectsj4+data$sectsj5+data$sectsj6+data$sectsj7+data$sectsj8)/8
+data$mcp<-(data$mcp1+data$mcp2+data$mcp3+data$mcp4+data$mcp5+data$mcp6+data$mcp7+data$mcp8+data$mcp9+data$mcp10+data$mcp11)/11
+
+#Sect Variables
+data$maronite<-ifelse(data$Sect==1, 1,0)
+data$sunni<-ifelse(data$Sect==7, 1,0)
+data$shia<-ifelse(data$Sect==8, 1,0)
+
+#Counter Sectarian Tweets
+#rating
+data$counter_sec1<-(data$Tweet8_1+data$Tweet6_1+data$Tweet4_1+data$Tweet7_1)/4
+#person rating
+data$counter_sec2<-(data$Tweet8_2+data$Tweet6_2+data$Tweet4_2+data$Tweet7_2)/4
+#sharing likelihood
+data$counter_sec3<-(data$Tweet8_3+data$Tweet6_3+data$Tweet4_3+data$Tweet7_3)/4
+# hist(data$counter_sec3)
+
+#Sectarian Tweets 
+#rating
+data$sec1<-(data$Tweet1_1+data$Tweet2_1+data$Tweet3_1+data$Tweet5_1)/4
+#person rating
+data$sec2<-(data$Tweet1_2+data$Tweet2_2+data$Tweet3_2+data$Tweet5_2)/4
+#sharing likelihood
+data$sec3<-(data$Tweet1_3+data$Tweet2_3+data$Tweet3_3+data$Tweet5_3)/4
+
+#Counter Sectarian Ratings - Sectarian Ratings
+data$combined1<-data$sec1-data$counter_sec1
+data$combined2<-data$sec2-data$counter_sec2
+data$combined3<-data$sec3-data$counter_sec3
+
+#Treatment Var
+data$treatment<-as.factor(data$Prmt)
+
+library(lmtest)
+library(sandwich)
+library(ggplot2)
+library(broom)
+library(RobustSE)
+
+```
+
+# Methodological Extension #2: clustered standard errors over geographical area
+The survey data included information on the subject’s geography, which was not used in either of the basic OLS estimates reported in the paper, nor the controlled regressions in the appendix. The nature of Lebanon’s consociational democracy today consists of ethnic and sectarian cleavages and enhanced polarization. Experts in the region have attempted to understand the nature of these divisions to address consistent issues Lebanon faces such as an absence of a social policy framework, weak coordination and governance, and politically targeting sectarian groups [@salti]. Given the context of Lebanon’s consociational democracy and ethnic distribution based on religious sect, we want to cluster the standard errors of the treatment effect by the different geographic/administrative levels provided to assess the robustness of the findings.
+
+The three geographical data points collected in the survey were "mohafaza", "caza", and "city". Within Lebanon, cazas are districts embedded in the larger county level of mohafaza districts. Since "city" is nested within the other two variables (as it is the smallest of the terms), we chose to cluster the models included in the survey data analysis by city. These analyses mirror those from @no2sec, and include the effect of the primes on all tweet ratings as well as the effect of the primes on sectarian and counter-sectarian tweet ratings. We find that the coefficients are the same with only slight differences in standard errors. This indicates that the conclusions drawn do not deviate even when clustering by location, as shown in Table 4 (for the combined rating, as described in the background), Table 5 (for the sectarian tweets), and Table 6 (for the counter-sectarian tweets). We use the aggregated measures from @no2sec as the dependent variable here to hold that part constant in comparison with @no2sec, such that the only difference here is in how the standard errors are clustered.
+
+
+
+```{r, out.width="400px", out.height="300px", message=FALSE, echo=FALSE, results='asis'}
+#Regressions for model 1- tweet rating in Figure 6
+model1<-lm(combined1~treatment, data=data)
+
+#Regressions for model 2- User rating in Figure 6
+model2<-lm(combined2~treatment, data=data)
+
+#Regressions for model 3- Likely to share in Figure 6
+model3<-lm(combined3~treatment, data=data)
+
+#Clustered Standard Errors
+
+stargazer(model1, coeftest(model1, vcovCL, cluster=data$City), 
+          model2, coeftest(model2, vcovCL, cluster=data$City), 
+          model3, coeftest(model3, vcovCL, cluster=data$City), 
+          type= "latex", header=FALSE, font.size="scriptsize",
+          covariate.labels = c("Religious ID", "National ID", "Religious ID (Elite)", "National ID (Elite)"),
+          column.labels = c("Regular SE", "Clustered", "Regular SE", "Clustered", "Regular SE", "Clustered"),
+          dep.var.labels = c("Tweet Rating", "", "User Rating","", "Likelihood to Share",""),
+          model.names = FALSE, 
+          title="Comparing regular and clustered SEs for estimates of treatment effect on combined tweet rating",
+          table.placement = "h!")
+
+
+#Regressions for model 1- tweet rating in Figure 7a
+model1<-lm(sec1~treatment, data=data)
+
+#Regressions for model 2- User rating in Figure 7a
+model2<-lm(sec2~treatment, data=data)
+
+#Regressions for model 3- Likely to share in Figure 7a
+model3<-lm(sec3~treatment, data=data)
+
+#Clustered Standard Errors
+
+stargazer(model1, coeftest(model1, vcovCL, cluster=data$City),
+          model2, coeftest(model2, vcovCL, cluster=data$City),
+          model3, coeftest(model3, vcovCL, cluster=data$City),
+          type= "latex", header=FALSE, font.size="scriptsize",
+          covariate.labels = c("Religious ID", "National ID", "Religious ID (Elite)", "National ID (Elite)"),
+          column.labels = c("Regular SE", "Clustered", "Regular SE", "Clustered", "Regular SE", "Clustered"),
+          dep.var.labels = c("Tweet Rating", "", "User Rating","", "Likelihood to Share",""),
+          model.names = FALSE, 
+          title="Comparing regular and clustered SEs for estimates of treatment effect on sectarian tweet rating",
+          table.placement = "h!")
+
+#Regressions for model 1- tweet rating in Figure 7b
+model1<-lm(counter_sec1~treatment, data=data)
+
+#Regressions for model 2- User rating in Figure 7b
+model2<-lm(counter_sec2~treatment, data=data)
+
+#Regressions for model 3- Likely to share in Figure 7b
+model3<-lm(counter_sec3~treatment, data=data)
+
+#Clustered Standard Errors
+
+stargazer(model1, coeftest(model1, vcovCL, cluster=data$City), 
+          model2, coeftest(model2, vcovCL, cluster=data$City), 
+          model3, coeftest(model3, vcovCL, cluster=data$City), 
+          type= "latex", header=FALSE, font.size="scriptsize",
+          covariate.labels = c("Religious ID", "National ID", "Religious ID (Elite)", "National ID (Elite)"),
+          column.labels = c("Regular SE", "Clustered", "Regular SE", "Clustered", "Regular SE", "Clustered"),
+          dep.var.labels = c("Tweet Rating", "", "User Rating","", "Likelihood to Share",""),
+          model.names = FALSE, 
+          title="Comparing regular and clustered SEs for estimates of treatment effect on counter-sectarian tweet rating",
+          table.placement = "h!")
+
+```
+
+
+\newpage
+# Conclusions 
+
+
+# Acknowledgements 
+We thank Prof. Gary King, Soubhik Barari, and Christopher Kenny for their patient and detailed instruction, and for useful feedback on earlier drafts of this work. We also appreciate the useful critiques and suggestions provided by our classmates Ye Shen, Radhika Tampi, and Raj Vatsa. Finally, we thank the authors of the original work, Prof. Vivienne Badaan and Prof. Alexandra Siegel for their dedication to open science through a transparent set of replication materials, and their earnest engagement with us throughout the process of replicating and extending their work. 
+
+# References 
+
+<div id="refs"></div>
+
+
+
+\newpage
+# Appendix 
+## Appendix 1: Tweets from the survey experiment 
+__Sectarian tweets:__ 
+
+1. Now the Arab people (or most of them) are certain that _Hezb Al-lat_ is a barbaric, destructive arm of Iran in the region and that it supports its _rawafid_ followers #HezbAllah_is_Lebanons_Destruction 
+
+2. I am a muslim [translator note: female] and I hate non-believers because they do not worship God [Allah]. 
+
+3. To the Christians of the March 8 bloc, how can you allow your future generations to live like you, as followers of an armed party that assassinated the best men of Lebanon? #Lebanon needs a new generation 
+
+4. #Shia muslims spend the night praying to God [Allah] on _Laylat Ul-Qadr_ [translator note: one of the holiest nights of the year in Islam], while _Da'esh_ [ISIS] scum blow up a masjid they are praying in. _Hasbuna Allah Wa Neam Alwakeel_ [translator note: sect-neutral religious saying along the lines of "We leave this to God, and he is the best agent."] #Kabul 
+
+__Counter-sectarian tweets:__ 
+
+1. Did you know that, in Lebanon, we are all Shia if a Shia is threatened, we are all Sunni if a Sunni is threatened, and we are all Christians if a Christian is threatened? #WeAreAllLebanon 
+
+2. There is no hope for Lebanon as long as politicians keep speaking in sectarian logic: Sunni, Shia, Druze, Christian, but nobody says "I am Lebanese". Sectarianism is cancer. 
+
+3. To the devoted sons of the Sunni sect, to the devoted sons of the Shia sect, we do not blame you for a lowly, divisive minority that does not represent you #NoToSectarianism 
+
+4. Lebanon has no economy, no justice system, no oversight, no electoral law, no establishments, no leadership, no authority... etc. Sectarianism infiltrates all of these headlines. #NoToSectarianism 
+
+
+\newpage
+## Appendix Tables 1 and 2: Estimating the effects of personal characteristics on non-response rates for sectarian and counter-sectarian tweets 
+
+
+\setcounter{table}{0}
+
+```{r, results='asis', echo=FALSE}
+stargazer(lm(anyna_tweet1 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet2 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet3 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet5 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df), 
+          type="latex", title="Estimating effects on non-response for sectarian tweets", header=FALSE,
+          dep.var.labels = c("NA Tweet 1", "NA Tweet 2", "NA Tweet 3", "NA Tweet 4"),
+          covariate.labels=c("Christian (ref: Shia)", "Druze", "Sunni", "Political Interest", "Social Media Use", "Religiosity", 
+                             "Sectarianism Index", "Sectarian System Justification Index", "MCP"))
+
+stargazer(lm(anyna_tweet4 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet6 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet7 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df),
+          lm(anyna_tweet8 ~ sect_coarse + polinterest + socmedia + relig_index + sectarian_index + sectsj_index + mcp_index, data=df), 
+          type="latex", title="Estimating effects on non-response for counter-sectarian tweets", header=FALSE,
+          dep.var.labels = c("NA Tweet 1", "NA Tweet 2", "NA Tweet 3", "NA Tweet 4"),
+          covariate.labels=c("Christian (ref: Shia)", "Druze", "Sunni", "Political Interest", "Social Media Use", "Religiosity", 
+                             "Sectarianism Index", "Sectarian System Justification Index", "MCP"))
+```
+
